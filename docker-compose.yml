@@ -1,0 +1,31 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+    networks:
+      - app
+
+  frontend:
+    build:
+      context: .
+      dockerfile: apps/frontend/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      # Public URL of the backend — set this in Coolify's environment variables.
+      # The browser uses this to make API calls directly.
+      NUXT_PUBLIC_API_BASE: ${API_BASE_URL:-http://localhost:3001}
+    depends_on:
+      - backend
+    networks:
+      - app
+
+networks:
+  app:
+    driver: bridge
