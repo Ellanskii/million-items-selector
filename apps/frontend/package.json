@@ -5,7 +5,12 @@
   "scripts": {
     "dev": "nuxt dev",
     "build": "nuxt build",
-    "lint": "eslint .",
     "typecheck": "nuxt typecheck"
+  },
+  "dependencies": {
+    "@million-items-selector/api-client": "workspace:*",
+    "@pinia/nuxt": "^0.11.0",
+    "nuxt": "^4.0.0",
+    "pinia": "^3.0.0"
   }
 }
