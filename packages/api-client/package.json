@@ -1,0 +1,9 @@
+{
+  "name": "@million-items-selector/api-client",
+  "private": true,
+  "version": "0.0.1",
+  "main": "src/index.ts",
+  "scripts": {
+    "generate": "openapi-typescript ../../packages/contracts/openapi.yaml -o src/generated/schema.ts"
+  }
+}

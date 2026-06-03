@@ -134,7 +134,7 @@ Rules:
 - regenerate after contract changes
 - always import from:
 
-  import { api } from '@api-client'
+  import { api } from '@million-items-selector/api-client'
 
 ---
 

@@ -1,0 +1,11 @@
+{
+  "name": "@million-items-selector/backend",
+  "private": true,
+  "version": "0.0.1",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  }
+}

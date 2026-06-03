@@ -1,0 +1,11 @@
+{
+  "name": "@million-items-selector/frontend",
+  "private": true,
+  "version": "0.0.1",
+  "scripts": {
+    "dev": "nuxt dev",
+    "build": "nuxt build",
+    "lint": "eslint .",
+    "typecheck": "nuxt typecheck"
+  }
+}
