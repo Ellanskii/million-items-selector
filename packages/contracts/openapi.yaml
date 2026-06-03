@@ -1,0 +1,206 @@
+openapi: 3.1.0
+
+info:
+  title: Million Items Selector API
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:3001
+
+paths:
+  /items:
+    get:
+      operationId: getItems
+      summary: Get paginated list of unselected items
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/FilterId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItemsPage'
+
+    post:
+      operationId: createItem
+      summary: Create a custom item
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateItemRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Item'
+        '409':
+          description: Item with this id already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /selected:
+    get:
+      operationId: getSelected
+      summary: Get paginated list of selected items in their current order
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/FilterId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItemsPage'
+
+  /select:
+    post:
+      operationId: selectItems
+      summary: Add items to selection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IdsRequest'
+      responses:
+        '200':
+          description: OK
+
+  /unselect:
+    post:
+      operationId: unselectItems
+      summary: Remove items from selection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IdsRequest'
+      responses:
+        '200':
+          description: OK
+
+  /reorder:
+    post:
+      operationId: reorderSelected
+      summary: Set the full order of selected items
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReorderRequest'
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Order contains ids not in selection
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  parameters:
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+    FilterId:
+      name: filter
+      in: query
+      description: Filter items whose id contains this substring
+      schema:
+        type: string
+
+  schemas:
+    Item:
+      type: object
+      required:
+        - id
+      properties:
+        id:
+          type: integer
+
+    ItemsPage:
+      type: object
+      required:
+        - items
+        - total
+        - page
+        - limit
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Item'
+        total:
+          type: integer
+          description: Total number of items matching the query
+        page:
+          type: integer
+        limit:
+          type: integer
+
+    IdsRequest:
+      type: object
+      required:
+        - ids
+      properties:
+        ids:
+          type: array
+          items:
+            type: integer
+          minItems: 1
+
+    ReorderRequest:
+      type: object
+      required:
+        - order
+      properties:
+        order:
+          type: array
+          items:
+            type: integer
+          description: Full ordered list of selected item ids
+
+    CreateItemRequest:
+      type: object
+      required:
+        - id
+      properties:
+        id:
+          type: integer
+          description: Custom item id, must be unique
+
+    Error:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
