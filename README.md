@@ -35,6 +35,7 @@ A fullstack demo app: select and reorder items from a list of 1,000,000 using in
 ```sh
 pnpm install
 pnpm dev          # runs frontend (localhost:3000) and backend (localhost:3001)
+pnpm test         # backend unit tests (state functions, 27 cases)
 pnpm generate:api # regenerate TypeScript client after contract changes
 pnpm lint
 pnpm build

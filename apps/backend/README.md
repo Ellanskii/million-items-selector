@@ -36,6 +36,17 @@ a non-selected item is a no-op. No queue, no deferred processing.
 The request queue with deduplication and batching lives on the frontend
 (`app/stores/items.ts`).
 
+## Testing
+
+Unit tests cover `src/state.ts` — all pure state functions including edge cases
+for `applyReorder`, pagination, filtering, and idempotency.
+
+```sh
+pnpm test                                             # from monorepo root
+pnpm --filter @million-items-selector/backend test    # direct (single run)
+pnpm --filter @million-items-selector/backend test:watch  # watch mode
+```
+
 ## Development
 
 ```sh
@@ -91,6 +102,17 @@ Query-параметры для `GET`-запросов: `page`, `limit`, `filter
 
 Очередь запросов с дедупликацией и батчингом реализована на фронтенде
 (`app/stores/items.ts`).
+
+## Тесты
+
+Юнит-тесты покрывают `src/state.ts` — все чистые state-функции, включая
+edge cases для `applyReorder`, пагинацию, фильтрацию и идемпотентность.
+
+```sh
+pnpm test                                             # из корня монорепо
+pnpm --filter @million-items-selector/backend test    # напрямую (однократный запуск)
+pnpm --filter @million-items-selector/backend test:watch  # режим наблюдения
+```
 
 ## Разработка
 

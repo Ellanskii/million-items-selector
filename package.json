@@ -10,7 +10,8 @@
     "build": "pnpm --filter @million-items-selector/contracts build && pnpm generate:api && pnpm -r --filter=!@million-items-selector/contracts build",
     "generate:api": "pnpm --filter @million-items-selector/api-client generate",
     "lint": "pnpm -r lint",
-    "typecheck": "pnpm -r typecheck"
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm --filter @million-items-selector/backend test"
   },
   "devDependencies": {
     "typescript": "^5.5.0"
