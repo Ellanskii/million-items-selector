@@ -29,6 +29,8 @@ const {
     }).then(r => r.data!),
   initialPageParam: 1,
   getNextPageParam: (last) => last.page * LIMIT < last.total ? last.page + 1 : undefined,
+  maxPages: 3,
+  refetchInterval: 1_000,
 })
 
 const allItems = computed(() => itemsData.value?.pages.flatMap(p => p.items) ?? [])
@@ -65,6 +67,8 @@ const {
     }).then(r => r.data!),
   initialPageParam: 1,
   getNextPageParam: (last) => last.page * LIMIT < last.total ? last.page + 1 : undefined,
+  maxPages: 3,
+  refetchInterval: 1_000,
 })
 
 const allSelected = computed(() => selectedData.value?.pages.flatMap(p => p.items) ?? [])
@@ -103,7 +107,7 @@ onMounted(() => startPolling())
 </script>
 
 <template>
-  <div class="min-h-screen bg-(--ui-bg) p-6">
+  <div class="min-h-screen bg-default p-6">
     <div class="max-w-6xl mx-auto space-y-4">
 
       <h1 class="text-2xl font-bold">Million Items Selector</h1>
@@ -140,7 +144,7 @@ onMounted(() => startPolling())
                     transform: `translateY(${row.start}px)`,
                     height: `${row.size}px`,
                   }"
-                  class="flex items-center justify-between px-1 border-b border-(--ui-border)"
+                  class="flex items-center justify-between px-1 border-b border-default"
                 >
                   <span class="tabular-nums">{{ allItems[row.index]?.id }}</span>
                   <UButton
@@ -154,7 +158,7 @@ onMounted(() => startPolling())
               </div>
             </div>
 
-            <p v-if="loadingMoreItems" class="text-sm text-center text-(--ui-text-muted) py-1">
+            <p v-if="loadingMoreItems" class="text-sm text-center text-muted py-1">
               Loading…
             </p>
           </div>
@@ -202,7 +206,7 @@ onMounted(() => startPolling())
                     transform: `translateY(${row.start}px)`,
                     height: `${row.size}px`,
                   }"
-                  class="flex items-center justify-between px-1 border-b border-(--ui-border)"
+                  class="flex items-center justify-between px-1 border-b border-default"
                 >
                   <span class="tabular-nums">{{ allSelected[row.index]?.id }}</span>
                   <UButton
@@ -217,10 +221,10 @@ onMounted(() => startPolling())
               </div>
             </div>
 
-            <p v-if="loadingMoreSelected" class="text-sm text-center text-(--ui-text-muted) py-1">
+            <p v-if="loadingMoreSelected" class="text-sm text-center text-muted py-1">
               Loading…
             </p>
-            <p v-else-if="allSelected.length === 0" class="text-sm text-(--ui-text-muted) text-center py-4">
+            <p v-else-if="allSelected.length === 0" class="text-sm text-muted text-center py-4">
               No items selected
             </p>
           </div>
