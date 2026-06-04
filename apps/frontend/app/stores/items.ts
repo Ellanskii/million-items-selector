@@ -1,8 +1,11 @@
 import { api } from '@million-items-selector/api-client'
 
 export const useItemsStore = defineStore('items', () => {
-  const pendingSelects = new Set<number>()
-  const pendingUnselects = new Set<number>()
+  const pendingSelects = reactive(new Set<number>())
+  const pendingUnselects = reactive(new Set<number>())
+  // Separate visual state: items hidden from the left panel until server confirms selection.
+  // Cleared only when allItems no longer contains the id (not tied to flush timing).
+  const hiddenFromLeft = reactive(new Set<number>())
   let pendingReorder: number[] | null = null
   const pendingCreates = new Set<number>()
   let flushing = false
@@ -10,11 +13,13 @@ export const useItemsStore = defineStore('items', () => {
   function select(id: number) {
     pendingUnselects.delete(id)
     pendingSelects.add(id)
+    hiddenFromLeft.add(id)
   }
 
   function unselect(id: number) {
     pendingSelects.delete(id)
     pendingUnselects.add(id)
+    hiddenFromLeft.delete(id)
   }
 
   function reorder(newOrder: number[]) {
@@ -55,5 +60,5 @@ export const useItemsStore = defineStore('items', () => {
     await Promise.all(batch.map(id => api.POST('/items', { body: { id } })))
   }
 
-  return { select, unselect, reorder, enqueueCreate, flushMutations, flushCreates }
+  return { select, unselect, reorder, enqueueCreate, flushMutations, flushCreates, pendingSelects, pendingUnselects, hiddenFromLeft }
 })

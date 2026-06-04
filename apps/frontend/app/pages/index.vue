@@ -36,10 +36,23 @@ const {
 
 const allItems = computed(() => itemsData.value?.pages.flatMap(p => p.items) ?? [])
 
+// Hide items optimistically; cleared only when server confirms (item gone from allItems)
+const displayedItems = computed(() =>
+  allItems.value.filter(item => !store.hiddenFromLeft.has(item.id))
+)
+
+watch(allItems, (items) => {
+  if (store.pendingSelects.size > 0 || store.pendingUnselects.size > 0) return
+  const ids = new Set(items.map(i => i.id))
+  for (const id of store.hiddenFromLeft) {
+    if (!ids.has(id)) store.hiddenFromLeft.delete(id)
+  }
+})
+
 const leftParent = ref<HTMLElement | null>(null)
 
 const leftVirtualizer = useVirtualizer(computed(() => ({
-  count: allItems.value.length,
+  count: displayedItems.value.length,
   getScrollElement: () => leftParent.value,
   estimateSize: () => ROW_HEIGHT,
   overscan: 5,
@@ -49,7 +62,7 @@ watchEffect(() => {
   const rows = leftVirtualizer.value.getVirtualItems()
   const last = rows[rows.length - 1]
   if (!last) return
-  if (last.index >= allItems.value.length - 1 && hasMoreItems.value && !loadingMoreItems.value)
+  if (last.index >= displayedItems.value.length - 1 && hasMoreItems.value && !loadingMoreItems.value)
     fetchMoreItems()
 })
 
@@ -88,10 +101,23 @@ watch(
   () => selectedData.value?.pages,
   (pages) => {
     if (!pages || isDragging.value || syncFrozen) return
+    // Don't overwrite optimistic state while mutations are still pending
+    if (store.pendingSelects.size > 0 || store.pendingUnselects.size > 0) return
     localOrder.value = pages.flatMap(p => p.items)
   },
   { deep: true, immediate: true },
 )
+
+function handleSelect(item: { id: number }) {
+  store.select(item.id)
+  if (!localOrder.value.find(i => i.id === item.id))
+    localOrder.value = [...localOrder.value, item]
+}
+
+function handleUnselect(id: number) {
+  store.unselect(id)
+  localOrder.value = localOrder.value.filter(item => item.id !== id)
+}
 
 // Recompute display when order or filter changes (not during drag)
 watch(
@@ -183,8 +209,8 @@ onMounted(() => startPolling())
                   }"
                   class="flex items-center justify-between px-1 border-b border-default"
                 >
-                  <span class="tabular-nums">{{ allItems[row.index]?.id }}</span>
-                  <UButton size="xs" variant="subtle" @click="store.select(allItems[row.index]!.id)">
+                  <span class="tabular-nums">{{ displayedItems[row.index]?.id }}</span>
+                  <UButton size="xs" variant="subtle" @click="handleSelect(displayedItems[row.index]!)">
                     Select
                   </UButton>
                 </div>
@@ -242,7 +268,7 @@ onMounted(() => startPolling())
                     size="xs"
                     variant="subtle"
                     color="error"
-                    @click="store.unselect(item.id)"
+                    @click="handleUnselect(item.id)"
                   >
                     Remove
                   </UButton>
