@@ -175,7 +175,10 @@ onMounted(() => startPolling())
   <div class="min-h-screen bg-default p-6">
     <div class="max-w-6xl mx-auto space-y-4">
 
-      <h1 class="text-2xl font-bold">Million Items Selector</h1>
+      <div class="flex items-center gap-2">
+        <h1 class="text-2xl font-bold">Million Items Selector</h1>
+        <AppInfoModal />
+      </div>
 
       <div class="grid grid-cols-2 gap-6">
 
