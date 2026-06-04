@@ -30,6 +30,7 @@ packages/
 - Backend MUST implement contracts exactly as defined in OpenAPI
 - No business logic duplication between frontend and backend
 - In-memory state only on backend (no DB)
+- No user accounts — state is shared across all visitors
 
 ---
 
@@ -123,7 +124,7 @@ State must survive page reload (process lifetime only)
   - selected items
   - infinite scroll (page size = 20)
   - filter by id
-  - drag & drop reorder
+  - drag & drop reorder (must work on filtered list too)
   - persisted order
 
 ---
