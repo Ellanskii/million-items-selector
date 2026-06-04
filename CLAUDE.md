@@ -166,7 +166,7 @@ pnpm build
 ## Deployment
 
 - Personal VDS with Coolify
-- API must be reachable from frontend via env NUXT_API_BASE_URL
+- API must be reachable from frontend via env `NUXT_PUBLIC_API_BASE` (maps to `runtimeConfig.public.apiBase`)
 
 ---
 
