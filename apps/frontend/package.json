@@ -3,12 +3,13 @@
   "private": true,
   "version": "0.0.1",
   "scripts": {
-    "dev": "nuxt dev",
+    "dev": "TMPDIR=/tmp nuxt dev",
     "build": "nuxt build",
     "typecheck": "nuxt typecheck"
   },
   "dependencies": {
     "@million-items-selector/api-client": "workspace:*",
+    "@nuxt/ui": "^4.8.1",
     "@pinia/nuxt": "^0.11.0",
     "nuxt": "^4.0.0",
     "pinia": "^3.0.0"

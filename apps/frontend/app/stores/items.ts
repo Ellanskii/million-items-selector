@@ -8,10 +8,12 @@ export const useItemsStore = defineStore('items', () => {
   const selected = ref<{ id: number }[]>([])
   const totalUnselected = ref(0)
   const page = ref(1)
+  const filter = ref('')
+  const selectedFilter = ref('')
 
   async function fetchItems() {
     const { data } = await api.GET('/items', {
-      params: { query: { page: page.value, limit: LIMIT } },
+      params: { query: { page: page.value, limit: LIMIT, filter: filter.value || undefined } },
     })
     if (data) {
       items.value = data.items
@@ -21,7 +23,7 @@ export const useItemsStore = defineStore('items', () => {
 
   async function fetchSelected() {
     const { data } = await api.GET('/selected', {
-      params: { query: { page: 1, limit: LIMIT } },
+      params: { query: { page: 1, limit: LIMIT, filter: selectedFilter.value || undefined } },
     })
     if (data) selected.value = data.items
   }
@@ -40,13 +42,26 @@ export const useItemsStore = defineStore('items', () => {
     setTimeout(refresh, QUEUE_FLUSH_DELAY)
   }
 
-  function prevPage() {
-    if (page.value > 1) { page.value--; fetchItems() }
+  async function createItem(id: number): Promise<string | null> {
+    const { error } = await api.POST('/items', { body: { id } })
+    if (error) return (error as { message?: string }).message ?? 'Error'
+    await fetchItems()
+    return null
   }
 
-  function nextPage() {
-    page.value++; fetchItems()
-  }
+  watch(filter, () => { page.value = 1; fetchItems() })
+  watch(selectedFilter, () => fetchSelected())
+  watch(page, () => fetchItems())
 
-  return { items, selected, totalUnselected, page, LIMIT, refresh, select, unselect, prevPage, nextPage }
+  function prevPage() { if (page.value > 1) page.value-- }
+  function nextPage() { page.value++ }
+
+  const totalPages = computed(() => Math.ceil(totalUnselected.value / LIMIT))
+
+  return {
+    items, selected, totalUnselected, totalPages,
+    page, filter, selectedFilter,
+    refresh, select, unselect, createItem,
+    prevPage, nextPage,
+  }
 })
