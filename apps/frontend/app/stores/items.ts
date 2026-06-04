@@ -6,7 +6,7 @@ export const useItemsStore = defineStore('items', () => {
   // Separate visual state: items hidden from the left panel until server confirms selection.
   // Cleared only when allItems no longer contains the id (not tied to flush timing).
   const hiddenFromLeft = reactive(new Set<number>())
-  let pendingReorder: number[] | null = null
+  let pendingReorder: { id: number; afterId: number | null } | null = null
   const pendingCreates = new Set<number>()
   let flushing = false
 
@@ -22,8 +22,8 @@ export const useItemsStore = defineStore('items', () => {
     hiddenFromLeft.delete(id)
   }
 
-  function reorder(newOrder: number[]) {
-    pendingReorder = newOrder
+  function reorder(id: number, afterId: number | null) {
+    pendingReorder = { id, afterId }
   }
 
   function enqueueCreate(id: number): string | null {
@@ -46,7 +46,7 @@ export const useItemsStore = defineStore('items', () => {
       await Promise.all([
         selects.length ? api.POST('/select', { body: { ids: selects } }) : Promise.resolve(),
         unselects.length ? api.POST('/unselect', { body: { ids: unselects } }) : Promise.resolve(),
-        reorderOp ? api.POST('/reorder', { body: { order: reorderOp } }) : Promise.resolve(),
+        reorderOp ? api.POST('/reorder', { body: { id: reorderOp.id, afterId: reorderOp.afterId } }) : Promise.resolve(),
       ])
     } finally {
       flushing = false
@@ -60,5 +60,13 @@ export const useItemsStore = defineStore('items', () => {
     await Promise.all(batch.map(id => api.POST('/items', { body: { id } })))
   }
 
-  return { select, unselect, reorder, enqueueCreate, flushMutations, flushCreates, pendingSelects, pendingUnselects, hiddenFromLeft }
+  function hasPending() {
+    return pendingSelects.size > 0 || pendingUnselects.size > 0 || pendingReorder !== null
+  }
+
+  function hasPendingCreates() {
+    return pendingCreates.size > 0
+  }
+
+  return { select, unselect, reorder, enqueueCreate, flushMutations, flushCreates, pendingSelects, pendingUnselects, hiddenFromLeft, hasPending, hasPendingCreates }
 })

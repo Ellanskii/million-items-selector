@@ -75,7 +75,7 @@ packages/
   - GET /selected
   - POST /select
   - POST /unselect
-  - POST /reorder
+  - POST /reorder  (body: `{ id, afterId }` — move item after afterId, null = beginning)
   - POST /items (custom item creation)
 
 ---

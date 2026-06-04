@@ -94,7 +94,7 @@ paths:
   /reorder:
     post:
       operationId: reorderSelected
-      summary: Set the full order of selected items
+      summary: Move a selected item to a new position
       requestBody:
         required: true
         content:
@@ -180,13 +180,15 @@ components:
     ReorderRequest:
       type: object
       required:
-        - order
+        - id
       properties:
-        order:
-          type: array
-          items:
-            type: integer
-          description: Full ordered list of selected item ids
+        id:
+          type: integer
+          description: The item to move
+        afterId:
+          type: integer
+          nullable: true
+          description: Place the item after this id, or null to place at the beginning
 
     CreateItemRequest:
       type: object

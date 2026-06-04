@@ -61,13 +61,20 @@ export function applyUnselect(ids: number[]): void {
   }
 }
 
-export function applyReorder(newOrder: number[]): boolean {
-  if (newOrder.length !== selected.size) return false
-  for (const id of newOrder) {
-    if (!selected.has(id)) return false
+export function applyReorder(id: number, afterId: number | null): boolean {
+  if (!selected.has(id)) return false
+  if (afterId !== null && !selected.has(afterId)) return false
+  if (afterId === id) return false
+  const idx = order.indexOf(id)
+  if (idx === -1) return false
+  order.splice(idx, 1)
+  if (afterId === null) {
+    order.unshift(id)
+  } else {
+    const afterIdx = order.indexOf(afterId)
+    if (afterIdx === -1) return false
+    order.splice(afterIdx + 1, 0, id)
   }
-  order.length = 0
-  order.push(...newOrder)
   return true
 }
 

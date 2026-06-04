@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useInfiniteQuery } from '@tanstack/vue-query'
+import { useInfiniteQuery, useQuery, useQueryClient, type InfiniteData } from '@tanstack/vue-query'
 import { useVirtualizer } from '@tanstack/vue-virtual'
 import { VueDraggable } from 'vue-draggable-plus'
 import { api } from '@million-items-selector/api-client'
@@ -30,11 +30,34 @@ const {
     }).then(r => r.data!),
   initialPageParam: 1,
   getNextPageParam: (last) => last.page * LIMIT < last.total ? last.page + 1 : undefined,
-  maxPages: 3,
+  // No refetchInterval — page 1 poll below handles freshness at constant cost
+})
+
+// Polls only page 1 every 1s — satisfies ТЗ "getting data every 1s" at fixed 1 req/s
+const queryClient = useQueryClient()
+const { data: itemsPage1 } = useQuery({
+  queryKey: computed(() => ['items-p1', leftFilter.value]),
+  queryFn: () => api.GET('/items', {
+    params: { query: { page: 1, limit: LIMIT, filter: leftFilter.value || undefined } },
+  }).then(r => r.data!),
   refetchInterval: 1_000,
+  staleTime: 0,
+})
+
+// Keep page 1 of the infinite cache fresh from the poll
+watch(itemsPage1, (fresh) => {
+  if (!fresh) return
+  const key = ['items', leftFilter.value]
+  const cached = queryClient.getQueryData<InfiniteData<typeof fresh>>(key)
+  if (!cached) return
+  queryClient.setQueryData(key, {
+    ...cached,
+    pages: [fresh, ...cached.pages.slice(1)],
+  })
 })
 
 const allItems = computed(() => itemsData.value?.pages.flatMap(p => p.items) ?? [])
+const totalUnselected = computed(() => itemsPage1.value?.total ?? itemsData.value?.pages[0]?.total ?? 0)
 
 // Hide items optimistically; cleared only when server confirms (item gone from allItems)
 const displayedItems = computed(() =>
@@ -85,13 +108,24 @@ const {
   refetchInterval: 1_000,
 })
 
-// Eagerly load all selected pages so reorder always has the full list
-watchEffect(() => {
-  if (hasMoreSelected.value && !loadingMoreSelected.value) fetchMoreSelected()
+// Lazy-load next page when sentinel scrolls into view
+const rightLoadTrigger = ref<HTMLElement | null>(null)
+let rightObserver: IntersectionObserver | null = null
+
+onMounted(() => {
+  rightObserver = new IntersectionObserver((entries) => {
+    if (entries[0]?.isIntersecting && hasMoreSelected.value && !loadingMoreSelected.value)
+      fetchMoreSelected()
+  }, { threshold: 0.1 })
+  if (rightLoadTrigger.value) rightObserver.observe(rightLoadTrigger.value)
 })
+
+onUnmounted(() => rightObserver?.disconnect())
 
 // localOrder — source of truth for drag order, seeded from server
 // localDisplay — what vuedraggable is bound to (filtered or full)
+const totalSelected = computed(() => selectedData.value?.pages[0]?.total ?? 0)
+
 const localOrder = ref<{ id: number }[]>([])
 const localDisplay = ref<{ id: number }[]>([])
 const isDragging = ref(false)
@@ -131,28 +165,29 @@ watch(
   { immediate: true },
 )
 
-function onDragEnd() {
+function onDragEnd(event: { newIndex?: number }) {
   isDragging.value = false
-  // Freeze server sync for 2s so the next refetch doesn't overwrite local drag
   syncFrozen = true
   setTimeout(() => { syncFrozen = false }, 2_000)
 
-  if (!rightFilter.value) {
-    localOrder.value = [...localDisplay.value]
+  const newIndex = event.newIndex ?? 0
+  const movedItem = localDisplay.value[newIndex]
+  if (!movedItem) return
+
+  const afterId = newIndex > 0 ? (localDisplay.value[newIndex - 1]?.id ?? null) : null
+
+  // Apply the same move to localOrder so the full order stays consistent
+  const id = movedItem.id
+  const ids = localOrder.value.map(i => i.id).filter(i => i !== id)
+  if (afterId === null) {
+    ids.unshift(id)
   } else {
-    // Merge filtered drag result back into full order:
-    // filtered items keep their relative positions in localOrder, just reordered among themselves
-    const filteredPositions = localOrder.value
-      .map((item, idx) => ({ item, idx }))
-      .filter(({ item }) => String(item.id).includes(rightFilter.value))
-      .map(({ idx }) => idx)
-
-    const newOrder = [...localOrder.value]
-    filteredPositions.forEach((pos, i) => { newOrder[pos] = localDisplay.value[i]! })
-    localOrder.value = newOrder
+    const afterIdx = ids.indexOf(afterId)
+    if (afterIdx !== -1) ids.splice(afterIdx + 1, 0, id)
   }
+  localOrder.value = ids.map(i => ({ id: i }))
 
-  store.reorder(localOrder.value.map(item => item.id))
+  store.reorder(id, afterId)
 }
 
 // ---- Create form ----
@@ -187,7 +222,7 @@ onMounted(() => startPolling())
           <template #header>
             <div class="flex items-center justify-between">
               <span class="font-semibold">Items</span>
-              <UBadge variant="subtle">{{ allItems.length }} loaded</UBadge>
+              <UBadge variant="subtle">{{ totalUnselected }}</UBadge>
             </div>
           </template>
 
@@ -241,7 +276,7 @@ onMounted(() => startPolling())
           <template #header>
             <div class="flex items-center justify-between">
               <span class="font-semibold">Selected</span>
-              <UBadge color="success" variant="subtle">{{ localOrder.length }}</UBadge>
+              <UBadge color="success" variant="subtle">{{ totalSelected }}</UBadge>
             </div>
           </template>
 
@@ -278,6 +313,7 @@ onMounted(() => startPolling())
                 </div>
               </VueDraggable>
 
+              <div ref="rightLoadTrigger" class="h-1" />
               <p v-if="loadingMoreSelected" class="text-sm text-center text-muted py-2">Loading…</p>
             </div>
 

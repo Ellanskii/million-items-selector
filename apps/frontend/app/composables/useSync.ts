@@ -1,14 +1,30 @@
+import { useQueryClient } from '@tanstack/vue-query'
+
 export function useSync() {
   const store = useItemsStore()
+  const queryClient = useQueryClient()
   let started = false
 
   function startPolling() {
     if (started) return
     started = true
 
-    // Mutations flush every 1s — queries poll themselves via refetchInterval
-    setInterval(() => store.flushMutations(), 1_000)
-    setInterval(() => store.flushCreates(), 10_000)
+    // Flush mutations every 1s; invalidate only when something actually changed
+    setInterval(async () => {
+      const had = store.hasPending()
+      await store.flushMutations()
+      if (had) {
+        queryClient.invalidateQueries({ queryKey: ['items'] })
+        queryClient.invalidateQueries({ queryKey: ['selected'] })
+      }
+    }, 1_000)
+
+    // Flush creates every 10s; invalidate items if anything was added
+    setInterval(async () => {
+      const had = store.hasPendingCreates()
+      await store.flushCreates()
+      if (had) queryClient.invalidateQueries({ queryKey: ['items'] })
+    }, 10_000)
   }
 
   return { startPolling }
