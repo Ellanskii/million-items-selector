@@ -1,13 +1,92 @@
 <script setup lang="ts">
+import { useInfiniteQuery } from '@tanstack/vue-query'
+import { useVirtualizer } from '@tanstack/vue-virtual'
+import { api } from '@million-items-selector/api-client'
+
+const LIMIT = 20
+const ROW_HEIGHT = 44
+
 const store = useItemsStore()
+const { startPolling } = useSync()
 const toast = useToast()
 
+const leftFilter = ref('')
+const rightFilter = ref('')
 const newItemId = ref<number | null>(null)
 
-onMounted(() => {
-  store.refresh()
-  store.startPolling()
+// ---- Left panel: unselected items ----
+
+const {
+  data: itemsData,
+  fetchNextPage: fetchMoreItems,
+  hasNextPage: hasMoreItems,
+  isFetchingNextPage: loadingMoreItems,
+} = useInfiniteQuery({
+  queryKey: computed(() => ['items', leftFilter.value]),
+  queryFn: ({ pageParam }) =>
+    api.GET('/items', {
+      params: { query: { page: pageParam as number, limit: LIMIT, filter: leftFilter.value || undefined } },
+    }).then(r => r.data!),
+  initialPageParam: 1,
+  getNextPageParam: (last) => last.page * LIMIT < last.total ? last.page + 1 : undefined,
 })
+
+const allItems = computed(() => itemsData.value?.pages.flatMap(p => p.items) ?? [])
+
+const leftParent = ref<HTMLElement | null>(null)
+
+const leftVirtualizer = useVirtualizer(computed(() => ({
+  count: allItems.value.length,
+  getScrollElement: () => leftParent.value,
+  estimateSize: () => ROW_HEIGHT,
+  overscan: 5,
+})))
+
+watchEffect(() => {
+  const rows = leftVirtualizer.value.getVirtualItems()
+  const last = rows[rows.length - 1]
+  if (!last) return
+  if (last.index >= allItems.value.length - 1 && hasMoreItems.value && !loadingMoreItems.value)
+    fetchMoreItems()
+})
+
+// ---- Right panel: selected items ----
+
+const {
+  data: selectedData,
+  fetchNextPage: fetchMoreSelected,
+  hasNextPage: hasMoreSelected,
+  isFetchingNextPage: loadingMoreSelected,
+} = useInfiniteQuery({
+  queryKey: computed(() => ['selected', rightFilter.value]),
+  queryFn: ({ pageParam }) =>
+    api.GET('/selected', {
+      params: { query: { page: pageParam as number, limit: LIMIT, filter: rightFilter.value || undefined } },
+    }).then(r => r.data!),
+  initialPageParam: 1,
+  getNextPageParam: (last) => last.page * LIMIT < last.total ? last.page + 1 : undefined,
+})
+
+const allSelected = computed(() => selectedData.value?.pages.flatMap(p => p.items) ?? [])
+
+const rightParent = ref<HTMLElement | null>(null)
+
+const rightVirtualizer = useVirtualizer(computed(() => ({
+  count: allSelected.value.length,
+  getScrollElement: () => rightParent.value,
+  estimateSize: () => ROW_HEIGHT,
+  overscan: 5,
+})))
+
+watchEffect(() => {
+  const rows = rightVirtualizer.value.getVirtualItems()
+  const last = rows[rows.length - 1]
+  if (!last) return
+  if (last.index >= allSelected.value.length - 1 && hasMoreSelected.value && !loadingMoreSelected.value)
+    fetchMoreSelected()
+})
+
+// ---- Create form ----
 
 function handleCreate() {
   if (!newItemId.value) return
@@ -19,6 +98,8 @@ function handleCreate() {
     newItemId.value = null
   }
 }
+
+onMounted(() => startPolling())
 </script>
 
 <template>
@@ -34,49 +115,48 @@ function handleCreate() {
           <template #header>
             <div class="flex items-center justify-between">
               <span class="font-semibold">Items</span>
-              <UBadge variant="subtle">{{ store.totalUnselected }} unselected</UBadge>
+              <UBadge variant="subtle">{{ allItems.length }} loaded</UBadge>
             </div>
           </template>
 
           <div class="space-y-3">
             <UInput
-              v-model="store.filter"
+              v-model="leftFilter"
               placeholder="Filter by id…"
               leading-icon="i-lucide-search"
             />
 
-            <ul class="divide-y divide-(--ui-border)">
-              <li
-                v-for="item in store.items"
-                :key="item.id"
-                class="flex items-center justify-between py-2"
+            <div ref="leftParent" class="overflow-y-auto h-[500px]">
+              <div
+                :style="{ height: `${leftVirtualizer.getTotalSize()}px`, position: 'relative' }"
               >
-                <span class="tabular-nums">{{ item.id }}</span>
-                <UButton size="xs" variant="subtle" @click="store.select(item.id)">
-                  Select
-                </UButton>
-              </li>
-            </ul>
-
-            <div class="flex items-center justify-between pt-1">
-              <UButton
-                size="xs"
-                variant="ghost"
-                leading-icon="i-lucide-chevron-left"
-                :disabled="store.page <= 1"
-                @click="store.prevPage()"
-              />
-              <span class="text-sm text-(--ui-text-muted)">
-                Page {{ store.page }} / {{ store.totalPages }}
-              </span>
-              <UButton
-                size="xs"
-                variant="ghost"
-                leading-icon="i-lucide-chevron-right"
-                :disabled="store.page >= store.totalPages"
-                @click="store.nextPage()"
-              />
+                <div
+                  v-for="row in leftVirtualizer.getVirtualItems()"
+                  :key="row.key"
+                  :style="{
+                    position: 'absolute',
+                    top: 0,
+                    width: '100%',
+                    transform: `translateY(${row.start}px)`,
+                    height: `${row.size}px`,
+                  }"
+                  class="flex items-center justify-between px-1 border-b border-(--ui-border)"
+                >
+                  <span class="tabular-nums">{{ allItems[row.index]?.id }}</span>
+                  <UButton
+                    size="xs"
+                    variant="subtle"
+                    @click="store.select(allItems[row.index]!.id)"
+                  >
+                    Select
+                  </UButton>
+                </div>
+              </div>
             </div>
+
+            <p v-if="loadingMoreItems" class="text-sm text-center text-(--ui-text-muted) py-1">
+              Loading…
+            </p>
           </div>
 
           <template #footer>
@@ -87,9 +167,7 @@ function handleCreate() {
                 placeholder="Custom item id"
                 class="flex-1"
               />
-              <UButton type="submit" leading-icon="i-lucide-plus">
-                Add
-              </UButton>
+              <UButton type="submit" leading-icon="i-lucide-plus">Add</UButton>
             </form>
           </template>
         </UCard>
@@ -99,36 +177,50 @@ function handleCreate() {
           <template #header>
             <div class="flex items-center justify-between">
               <span class="font-semibold">Selected</span>
-              <UBadge color="success" variant="subtle">{{ store.selected.length }}</UBadge>
+              <UBadge color="success" variant="subtle">{{ allSelected.length }} loaded</UBadge>
             </div>
           </template>
 
           <div class="space-y-3">
             <UInput
-              v-model="store.selectedFilter"
+              v-model="rightFilter"
               placeholder="Filter by id…"
               leading-icon="i-lucide-search"
             />
 
-            <ul class="divide-y divide-(--ui-border)">
-              <li
-                v-for="item in store.selected"
-                :key="item.id"
-                class="flex items-center justify-between py-2"
+            <div ref="rightParent" class="overflow-y-auto h-[500px]">
+              <div
+                :style="{ height: `${rightVirtualizer.getTotalSize()}px`, position: 'relative' }"
               >
-                <span class="tabular-nums">{{ item.id }}</span>
-                <UButton
-                  size="xs"
-                  variant="subtle"
-                  color="error"
-                  @click="store.unselect(item.id)"
+                <div
+                  v-for="row in rightVirtualizer.getVirtualItems()"
+                  :key="row.key"
+                  :style="{
+                    position: 'absolute',
+                    top: 0,
+                    width: '100%',
+                    transform: `translateY(${row.start}px)`,
+                    height: `${row.size}px`,
+                  }"
+                  class="flex items-center justify-between px-1 border-b border-(--ui-border)"
                 >
-                  Remove
-                </UButton>
-              </li>
-            </ul>
+                  <span class="tabular-nums">{{ allSelected[row.index]?.id }}</span>
+                  <UButton
+                    size="xs"
+                    variant="subtle"
+                    color="error"
+                    @click="store.unselect(allSelected[row.index]!.id)"
+                  >
+                    Remove
+                  </UButton>
+                </div>
+              </div>
+            </div>
 
-            <p v-if="store.selected.length === 0" class="text-sm text-(--ui-text-muted) text-center py-4">
+            <p v-if="loadingMoreSelected" class="text-sm text-center text-(--ui-text-muted) py-1">
+              Loading…
+            </p>
+            <p v-else-if="allSelected.length === 0" class="text-sm text-(--ui-text-muted) text-center py-4">
               No items selected
             </p>
           </div>

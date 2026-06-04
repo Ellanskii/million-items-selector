@@ -1,4 +1,5 @@
 export default defineNuxtConfig({
+  ssr: false,
   future: { compatibilityVersion: 4 },
   modules: [
     '@nuxt/ui',

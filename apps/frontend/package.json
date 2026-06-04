@@ -11,6 +11,8 @@
     "@million-items-selector/api-client": "workspace:*",
     "@nuxt/ui": "^4.8.1",
     "@pinia/nuxt": "^0.11.0",
+    "@tanstack/vue-query": "^5.101.0",
+    "@tanstack/vue-virtual": "^3.13.28",
     "nuxt": "^4.0.0",
     "pinia": "^3.0.0"
   },
