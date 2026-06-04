@@ -1,4 +1,4 @@
-import { applySelect, applyUnselect, applyReorder } from './state'
+import { applySelect, applyUnselect, applyReorder, applyCreate, items } from './state'
 
 type Op =
   | { type: 'select'; ids: number[] }
@@ -49,6 +49,21 @@ function flush(): void {
   }
 }
 
+const pendingCreates = new Set<number>()
+
+export function enqueueCreate(id: number): boolean {
+  if (items.has(id) || pendingCreates.has(id)) return false
+  pendingCreates.add(id)
+  return true
+}
+
+function flushCreates(): void {
+  if (pendingCreates.size === 0) return
+  for (const id of pendingCreates) applyCreate(id)
+  pendingCreates.clear()
+}
+
 export function startQueue(): void {
   setInterval(flush, 1_000)
+  setInterval(flushCreates, 10_000)
 }
