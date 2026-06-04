@@ -4,7 +4,7 @@
 
 A fullstack demo app: select and reorder items from a list of 1,000,000 using infinite scroll, drag & drop, and a client-side request queue.
 
-**Live:** [million-items-selector.ellanski.dev](https://million-items-selector.ellanski.dev)
+**Live:** [million-items-selector.ellanskii.top](https://million-items-selector.ellanskii.top/)
 
 ## Packages
 
@@ -58,7 +58,7 @@ API_BASE_URL=https://api.your-domain.com
 
 Fullstack-демо: выбор и сортировка элементов из списка в 1 000 000 позиций — с инфинити-скроллом, drag & drop и клиентской очередью запросов.
 
-**Live:** [million-items-selector.ellanski.dev](https://million-items-selector.ellanski.dev)
+**Live:** [million-items-selector.ellanskii.top](https://million-items-selector.ellanskii.top/)
 
 ## Пакеты
 
