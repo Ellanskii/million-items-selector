@@ -81,17 +81,21 @@ packages/
 
 ## Queue & batching
 
-Backend must implement request queue:
+Frontend implements the request queue (in `app/stores/items.ts`):
 
-- deduplication of identical operations
+- deduplication: pending `select(id)` cancels pending `unselect(id)` and vice versa
 - batching:
-  - mutations flushed every 10s
-  - sync operations every 1s
-- order of execution must be preserved per entity
+  - mutations (select/unselect/reorder) flushed every 1s
+  - item creation flushed every 10s
+- polling: GET /items + GET /selected executed every 1s after each mutation flush
 
 Queue rules:
-- identical operations within batch window are collapsed
+- identical operations within batch window are collapsed (Set-based dedup)
 - no duplicate selects/unselects
+- concurrent flushes are prevented via `flushing` guard
+
+Backend applies all operations immediately and synchronously. Idempotency is
+enforced in state functions (`selected.has(id)` before select, etc.).
 
 ---
 
@@ -170,6 +174,6 @@ pnpm build
 This project is intentionally over-engineered to demonstrate:
 - large dataset handling
 - contract-first API design
-- queue-based backend processing
+- queue-based frontend processing
 - deterministic state synchronization
 - scalable frontend rendering

@@ -3,19 +3,19 @@ const store = useItemsStore()
 const toast = useToast()
 
 const newItemId = ref<number | null>(null)
-const creating = ref(false)
 
-onMounted(() => store.refresh())
+onMounted(() => {
+  store.refresh()
+  store.startPolling()
+})
 
-async function handleCreate() {
+function handleCreate() {
   if (!newItemId.value) return
-  creating.value = true
-  const err = await store.createItem(newItemId.value)
-  creating.value = false
+  const err = store.enqueueCreate(newItemId.value)
   if (err) {
     toast.add({ title: 'Error', description: err, color: 'error' })
   } else {
-    toast.add({ title: `Item ${newItemId.value} added`, color: 'success' })
+    toast.add({ title: `Item ${newItemId.value} queued`, description: 'Will be added within 10s', color: 'success' })
     newItemId.value = null
   }
 }
@@ -87,7 +87,7 @@ async function handleCreate() {
                 placeholder="Custom item id"
                 class="flex-1"
               />
-              <UButton type="submit" :loading="creating" leading-icon="i-lucide-plus">
+              <UButton type="submit" leading-icon="i-lucide-plus">
                 Add
               </UButton>
             </form>

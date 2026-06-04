@@ -5,8 +5,6 @@ import selectedRouter from './routes/selected'
 import selectRouter from './routes/select'
 import unselectRouter from './routes/unselect'
 import reorderRouter from './routes/reorder'
-import { startQueue } from './queue'
-
 const app = express()
 const PORT = process.env.PORT ?? 3001
 
@@ -18,8 +16,6 @@ app.use('/selected', selectedRouter)
 app.use('/select', selectRouter)
 app.use('/unselect', unselectRouter)
 app.use('/reorder', reorderRouter)
-
-startQueue()
 
 app.listen(PORT, () => {
   console.log(`Backend listening on http://localhost:${PORT}`)

@@ -1,6 +1,5 @@
 import { Router } from 'express'
-import { getUnselectedPage } from '../state'
-import { enqueueCreate } from '../queue'
+import { getUnselectedPage, applyCreate } from '../state'
 
 const router = Router()
 
@@ -17,11 +16,11 @@ router.post('/', (req, res) => {
     res.status(400).json({ message: 'id must be a positive integer' })
     return
   }
-  if (!enqueueCreate(id)) {
+  if (!applyCreate(id)) {
     res.status(409).json({ message: `Item with id ${id} already exists` })
     return
   }
-  res.status(202).json({ id })
+  res.status(201).json({ id })
 })
 
 export default router

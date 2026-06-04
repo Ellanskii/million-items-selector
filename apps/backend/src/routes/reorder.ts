@@ -1,6 +1,5 @@
 import { Router } from 'express'
-import { enqueueReorder } from '../queue'
-import { selected } from '../state'
+import { applyReorder, selected } from '../state'
 
 const router = Router()
 
@@ -21,7 +20,7 @@ router.post('/', (req, res) => {
       return
     }
   }
-  enqueueReorder(valid)
+  applyReorder(valid)
   res.status(200).end()
 })
 

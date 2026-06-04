@@ -10,7 +10,6 @@ Express.js API server for the Million Items Selector. Manages in-memory state fo
 - Server-side pagination (default page size: 20, max: 100)
 - Substring filter by item id
 - Selection state with preserved order
-- Mutation queue: deduplicates and batches operations every 1s
 - Custom item creation via `POST /items`
 
 ## Endpoints
@@ -28,13 +27,14 @@ Query params for `GET` endpoints: `page`, `limit`, `filter`.
 
 Full schema: [`packages/contracts/openapi.yaml`](../../packages/contracts/openapi.yaml).
 
-## Queue behavior
+## State & idempotency
 
-`POST /select`, `POST /unselect`, and `POST /reorder` return `200` immediately and are applied to state within ~1s. `GET` endpoints always reflect committed state. Design your frontend with optimistic updates accordingly.
+All mutations are applied synchronously and respond immediately. Idempotency is
+enforced in state functions — selecting an already-selected item or unselecting
+a non-selected item is a no-op. No queue, no deferred processing.
 
-Deduplication rules within a batch window:
-- Consecutive selects / unselects for the same type are merged by id
-- Multiple reorders collapse into the last one
+The request queue with deduplication and batching lives on the frontend
+(`app/stores/items.ts`).
 
 ## Development
 
@@ -66,7 +66,6 @@ Express.js API-сервер. Управляет состоянием в памя
 - Серверная пагинация (размер страницы по умолчанию: 20, максимум: 100)
 - Фильтрация по подстроке id
 - Состояние выбора с сохранением порядка
-- Очередь мутаций: дедупликация и батчинг операций каждые 1s
 - Создание произвольных элементов через `POST /items`
 
 ## Эндпоинты
@@ -84,13 +83,14 @@ Query-параметры для `GET`-запросов: `page`, `limit`, `filter
 
 Полная схема: [`packages/contracts/openapi.yaml`](../../packages/contracts/openapi.yaml).
 
-## Поведение очереди
+## Состояние и идемпотентность
 
-`POST /select`, `POST /unselect` и `POST /reorder` возвращают `200` немедленно, а сами операции применяются к состоянию в течение ~1s. `GET`-эндпоинты всегда возвращают зафиксированное состояние. Фронтенд должен использовать оптимистичные обновления.
+Все мутации применяются синхронно, ответ возвращается немедленно. Идемпотентность
+обеспечивается на уровне state-функций — повторный select уже выбранного элемента
+или unselect невыбранного являются no-op. Очередей и отложенной обработки нет.
 
-Правила дедупликации в рамках одного батча:
-- Последовательные select / unselect одного типа объединяются по id
-- Несколько reorder схлопываются в последний
+Очередь запросов с дедупликацией и батчингом реализована на фронтенде
+(`app/stores/items.ts`).
 
 ## Разработка
 

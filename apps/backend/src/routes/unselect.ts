@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { enqueueUnselect } from '../queue'
+import { applyUnselect } from '../state'
 
 const router = Router()
 
@@ -14,7 +14,7 @@ router.post('/', (req, res) => {
     res.status(400).json({ message: 'ids must contain positive integers' })
     return
   }
-  enqueueUnselect(valid)
+  applyUnselect(valid)
   res.status(200).end()
 })
 
