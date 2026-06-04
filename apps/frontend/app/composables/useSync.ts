@@ -3,27 +3,34 @@ import { useQueryClient } from '@tanstack/vue-query'
 export function useSync() {
   const store = useItemsStore()
   const queryClient = useQueryClient()
+  const toast = useToast()
   let started = false
 
   function startPolling() {
     if (started) return
     started = true
 
-    // Flush mutations every 1s; invalidate only when something actually changed
     setInterval(async () => {
       const had = store.hasPending()
-      await store.flushMutations()
-      if (had) {
-        queryClient.invalidateQueries({ queryKey: ['items'] })
-        queryClient.invalidateQueries({ queryKey: ['selected'] })
+      try {
+        await store.flushMutations()
+        if (had) {
+          queryClient.invalidateQueries({ queryKey: ['items'] })
+          queryClient.invalidateQueries({ queryKey: ['selected'] })
+        }
+      } catch {
+        toast.add({ title: 'Sync error', description: 'Failed to save changes, retrying…', color: 'error' })
       }
     }, 1_000)
 
-    // Flush creates every 10s; invalidate items if anything was added
     setInterval(async () => {
       const had = store.hasPendingCreates()
-      await store.flushCreates()
-      if (had) queryClient.invalidateQueries({ queryKey: ['items'] })
+      try {
+        await store.flushCreates()
+        if (had) queryClient.invalidateQueries({ queryKey: ['items'] })
+      } catch {
+        toast.add({ title: 'Sync error', description: 'Failed to create items, retrying…', color: 'error' })
+      }
     }, 10_000)
   }
 

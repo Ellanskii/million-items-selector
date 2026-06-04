@@ -19,6 +19,7 @@ const {
   fetchNextPage,
   hasNextPage,
   isFetchingNextPage,
+  isError: itemsError,
 } = useInfiniteQuery({
   queryKey: computed(() => ['items', filter.value]),
   queryFn: ({ pageParam }) =>
@@ -131,7 +132,9 @@ function handleCreate() {
         </div>
       </div>
 
-      <p v-if="isFetchingNextPage" class="text-sm text-center text-muted py-1">Loading…</p>
+      <p v-if="itemsError" class="text-sm text-center text-error py-1">Failed to load items</p>
+      <p v-else-if="isFetchingNextPage" class="text-sm text-center text-muted py-1">Loading…</p>
+      <p v-else-if="displayedItems.length === 0 && !hasNextPage" class="text-sm text-center text-muted py-4">No items found</p>
     </div>
 
     <template #footer>

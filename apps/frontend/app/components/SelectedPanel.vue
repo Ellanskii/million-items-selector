@@ -15,6 +15,7 @@ const {
   fetchNextPage,
   hasNextPage,
   isFetchingNextPage,
+  isError: selectedError,
 } = useInfiniteQuery({
   queryKey: ['selected'] as const,
   queryFn: ({ pageParam }) =>
@@ -136,7 +137,8 @@ function onDragEnd(event: { newIndex?: number }) {
         <p v-if="isFetchingNextPage" class="text-sm text-center text-muted py-2">Loading…</p>
       </div>
 
-      <p v-if="localDisplay.length === 0 && !isFetchingNextPage" class="text-sm text-muted text-center py-4">
+      <p v-if="selectedError" class="text-sm text-center text-error py-1">Failed to load selected items</p>
+      <p v-else-if="localDisplay.length === 0 && !isFetchingNextPage" class="text-sm text-muted text-center py-4">
         No items selected
       </p>
     </div>
