@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useInfiniteQuery } from '@tanstack/vue-query'
 import { useVirtualizer } from '@tanstack/vue-virtual'
+import { VueDraggable } from 'vue-draggable-plus'
 import { api } from '@million-items-selector/api-client'
 
 const LIMIT = 20
@@ -14,7 +15,7 @@ const leftFilter = ref('')
 const rightFilter = ref('')
 const newItemId = ref<number | null>(null)
 
-// ---- Left panel: unselected items ----
+// ---- Left panel: unselected items (virtual scroll) ----
 
 const {
   data: itemsData,
@@ -52,7 +53,7 @@ watchEffect(() => {
     fetchMoreItems()
 })
 
-// ---- Right panel: selected items ----
+// ---- Right panel: selected items (drag & drop, no virtual scroll) ----
 
 const {
   data: selectedData,
@@ -60,35 +61,73 @@ const {
   hasNextPage: hasMoreSelected,
   isFetchingNextPage: loadingMoreSelected,
 } = useInfiniteQuery({
-  queryKey: computed(() => ['selected', rightFilter.value]),
+  // no filter in queryKey — filter is applied client-side to preserve full order for reorder
+  queryKey: ['selected'] as const,
   queryFn: ({ pageParam }) =>
     api.GET('/selected', {
-      params: { query: { page: pageParam as number, limit: LIMIT, filter: rightFilter.value || undefined } },
+      params: { query: { page: pageParam as number, limit: LIMIT } },
     }).then(r => r.data!),
   initialPageParam: 1,
   getNextPageParam: (last) => last.page * LIMIT < last.total ? last.page + 1 : undefined,
-  maxPages: 3,
   refetchInterval: 1_000,
 })
 
-const allSelected = computed(() => selectedData.value?.pages.flatMap(p => p.items) ?? [])
-
-const rightParent = ref<HTMLElement | null>(null)
-
-const rightVirtualizer = useVirtualizer(computed(() => ({
-  count: allSelected.value.length,
-  getScrollElement: () => rightParent.value,
-  estimateSize: () => ROW_HEIGHT,
-  overscan: 5,
-})))
-
+// Eagerly load all selected pages so reorder always has the full list
 watchEffect(() => {
-  const rows = rightVirtualizer.value.getVirtualItems()
-  const last = rows[rows.length - 1]
-  if (!last) return
-  if (last.index >= allSelected.value.length - 1 && hasMoreSelected.value && !loadingMoreSelected.value)
-    fetchMoreSelected()
+  if (hasMoreSelected.value && !loadingMoreSelected.value) fetchMoreSelected()
 })
+
+// localOrder — source of truth for drag order, seeded from server
+// localDisplay — what vuedraggable is bound to (filtered or full)
+const localOrder = ref<{ id: number }[]>([])
+const localDisplay = ref<{ id: number }[]>([])
+const isDragging = ref(false)
+let syncFrozen = false
+
+watch(
+  () => selectedData.value?.pages,
+  (pages) => {
+    if (!pages || isDragging.value || syncFrozen) return
+    localOrder.value = pages.flatMap(p => p.items)
+  },
+  { deep: true, immediate: true },
+)
+
+// Recompute display when order or filter changes (not during drag)
+watch(
+  [localOrder, rightFilter],
+  () => {
+    if (isDragging.value) return
+    localDisplay.value = rightFilter.value
+      ? localOrder.value.filter(item => String(item.id).includes(rightFilter.value))
+      : [...localOrder.value]
+  },
+  { immediate: true },
+)
+
+function onDragEnd() {
+  isDragging.value = false
+  // Freeze server sync for 2s so the next refetch doesn't overwrite local drag
+  syncFrozen = true
+  setTimeout(() => { syncFrozen = false }, 2_000)
+
+  if (!rightFilter.value) {
+    localOrder.value = [...localDisplay.value]
+  } else {
+    // Merge filtered drag result back into full order:
+    // filtered items keep their relative positions in localOrder, just reordered among themselves
+    const filteredPositions = localOrder.value
+      .map((item, idx) => ({ item, idx }))
+      .filter(({ item }) => String(item.id).includes(rightFilter.value))
+      .map(({ idx }) => idx)
+
+    const newOrder = [...localOrder.value]
+    filteredPositions.forEach((pos, i) => { newOrder[pos] = localDisplay.value[i]! })
+    localOrder.value = newOrder
+  }
+
+  store.reorder(localOrder.value.map(item => item.id))
+}
 
 // ---- Create form ----
 
@@ -131,9 +170,7 @@ onMounted(() => startPolling())
             />
 
             <div ref="leftParent" class="overflow-y-auto h-[500px]">
-              <div
-                :style="{ height: `${leftVirtualizer.getTotalSize()}px`, position: 'relative' }"
-              >
+              <div :style="{ height: `${leftVirtualizer.getTotalSize()}px`, position: 'relative' }">
                 <div
                   v-for="row in leftVirtualizer.getVirtualItems()"
                   :key="row.key"
@@ -147,20 +184,14 @@ onMounted(() => startPolling())
                   class="flex items-center justify-between px-1 border-b border-default"
                 >
                   <span class="tabular-nums">{{ allItems[row.index]?.id }}</span>
-                  <UButton
-                    size="xs"
-                    variant="subtle"
-                    @click="store.select(allItems[row.index]!.id)"
-                  >
+                  <UButton size="xs" variant="subtle" @click="store.select(allItems[row.index]!.id)">
                     Select
                   </UButton>
                 </div>
               </div>
             </div>
 
-            <p v-if="loadingMoreItems" class="text-sm text-center text-muted py-1">
-              Loading…
-            </p>
+            <p v-if="loadingMoreItems" class="text-sm text-center text-muted py-1">Loading…</p>
           </div>
 
           <template #footer>
@@ -176,12 +207,12 @@ onMounted(() => startPolling())
           </template>
         </UCard>
 
-        <!-- Right panel: selected items -->
+        <!-- Right panel: selected items with drag & drop -->
         <UCard>
           <template #header>
             <div class="flex items-center justify-between">
               <span class="font-semibold">Selected</span>
-              <UBadge color="success" variant="subtle">{{ allSelected.length }} loaded</UBadge>
+              <UBadge color="success" variant="subtle">{{ localOrder.length }}</UBadge>
             </div>
           </template>
 
@@ -192,39 +223,37 @@ onMounted(() => startPolling())
               leading-icon="i-lucide-search"
             />
 
-            <div ref="rightParent" class="overflow-y-auto h-[500px]">
-              <div
-                :style="{ height: `${rightVirtualizer.getTotalSize()}px`, position: 'relative' }"
+            <div class="overflow-y-auto h-[500px]">
+              <VueDraggable
+                v-model="localDisplay"
+                handle=".drag-handle"
+                @start="isDragging = true"
+                @end="onDragEnd"
               >
                 <div
-                  v-for="row in rightVirtualizer.getVirtualItems()"
-                  :key="row.key"
-                  :style="{
-                    position: 'absolute',
-                    top: 0,
-                    width: '100%',
-                    transform: `translateY(${row.start}px)`,
-                    height: `${row.size}px`,
-                  }"
-                  class="flex items-center justify-between px-1 border-b border-default"
+                  v-for="item in localDisplay"
+                  :key="item.id"
+                  class="flex items-center gap-2 px-1 border-b border-default"
+                  :style="{ height: `${ROW_HEIGHT}px` }"
                 >
-                  <span class="tabular-nums">{{ allSelected[row.index]?.id }}</span>
+                  <span class="drag-handle cursor-grab text-muted select-none">⠿</span>
+                  <span class="tabular-nums flex-1">{{ item.id }}</span>
                   <UButton
                     size="xs"
                     variant="subtle"
                     color="error"
-                    @click="store.unselect(allSelected[row.index]!.id)"
+                    @click="store.unselect(item.id)"
                   >
                     Remove
                   </UButton>
                 </div>
-              </div>
+              </VueDraggable>
+
+              <p v-if="loadingMoreSelected" class="text-sm text-center text-muted py-2">Loading…</p>
             </div>
 
-            <p v-if="loadingMoreSelected" class="text-sm text-center text-muted py-1">
-              Loading…
-            </p>
-            <p v-else-if="allSelected.length === 0" class="text-sm text-muted text-center py-4">
+            <p v-if="localDisplay.length === 0 && !loadingMoreSelected"
+               class="text-sm text-muted text-center py-4">
               No items selected
             </p>
           </div>
