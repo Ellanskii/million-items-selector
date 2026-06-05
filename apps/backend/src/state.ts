@@ -1,10 +1,21 @@
 const TOTAL_ITEMS = 1_000_000
 
 export const items = new Set<number>()
-for (let i = 1; i <= TOTAL_ITEMS; i++) items.add(i)
-
 export const selected = new Set<number>()
 export const order: number[] = []
+
+let _ready = false
+export const isReady = () => _ready
+
+export async function initState(): Promise<void> {
+  const CHUNK = 50_000
+  for (let start = 1; start <= TOTAL_ITEMS; start += CHUNK) {
+    const end = Math.min(start + CHUNK - 1, TOTAL_ITEMS)
+    for (let i = start; i <= end; i++) items.add(i)
+    await new Promise<void>(resolve => setImmediate(resolve))
+  }
+  _ready = true
+}
 
 export interface Page {
   items: { id: number }[]
@@ -25,9 +36,13 @@ function bumpVersion() {
 }
 
 export function resetStateForTesting() {
+  if (items.size === 0) {
+    for (let i = 1; i <= TOTAL_ITEMS; i++) items.add(i)
+  }
   mutationVersion++
   unselectedCache.clear()
   selectedCache.clear()
+  _ready = true
 }
 
 export function getUnselectedPage(filter: string | undefined, page: number, limit: number): Page {
