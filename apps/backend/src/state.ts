@@ -14,6 +14,7 @@ export interface Page {
 }
 
 export function getUnselectedPage(filter: string | undefined, page: number, limit: number): Page {
+  // FIXME: This is not efficient for large datasets, but it's just a demo
   const matching: number[] = []
   for (const id of items) {
     if (selected.has(id)) continue
