@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "TMPDIR=/tmp nuxt dev",
     "build": "nuxt build",
+    "generate": "nuxt generate",
     "typecheck": "nuxt typecheck"
   },
   "dependencies": {
