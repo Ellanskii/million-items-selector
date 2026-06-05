@@ -17,12 +17,12 @@ COPY packages/contracts packages/contracts
 COPY packages/api-client packages/api-client
 RUN pnpm --filter @million-items-selector/api-client generate
 
-# Generate static site — API_BASE_URL is baked into the bundle at build time
+# Build SPA — with ssr:false, static assets land in .output/public/
 FROM api-gen AS build
 ARG API_BASE_URL=http://localhost:3001
 ENV NUXT_PUBLIC_API_BASE=$API_BASE_URL
 COPY apps/frontend apps/frontend
-RUN pnpm --filter @million-items-selector/frontend generate
+RUN pnpm --filter @million-items-selector/frontend build
 
 # Serve static files with nginx
 FROM nginx:alpine AS runner
