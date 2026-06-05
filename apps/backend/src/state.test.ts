@@ -1,10 +1,11 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { applyReorder, applySelect, applyUnselect, applyCreate, getUnselectedPage, getSelectedPage, selected, order, items } from './state'
+import { applyReorder, applySelect, applyUnselect, applyCreate, getUnselectedPage, getSelectedPage, selected, order, items, resetStateForTesting } from './state'
 
 // Reset shared mutable state before every test
 beforeEach(() => {
   selected.clear()
   order.length = 0
+  resetStateForTesting()
 })
 
 // Populate selected + order in one call

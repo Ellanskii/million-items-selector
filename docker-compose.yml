@@ -7,6 +7,14 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3001
+      # Origin allowed for CORS — set to the frontend's public URL in Coolify env vars
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-*}
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     networks:
       - app
 
@@ -22,7 +30,8 @@ services:
       # The browser uses this to make API calls directly.
       NUXT_PUBLIC_API_BASE: ${API_BASE_URL:-http://localhost:3001}
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     networks:
       - app
 
