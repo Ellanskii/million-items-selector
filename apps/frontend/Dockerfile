@@ -17,16 +17,17 @@ COPY packages/contracts packages/contracts
 COPY packages/api-client packages/api-client
 RUN pnpm --filter @million-items-selector/api-client generate
 
-# Build Nuxt — NUXT_PUBLIC_API_BASE is a runtime config, no build-time baking needed
+# Generate static site — API_BASE_URL is baked into the bundle at build time
 FROM api-gen AS build
+ARG API_BASE_URL=http://localhost:3001
+ENV NUXT_PUBLIC_API_BASE=$API_BASE_URL
 COPY apps/frontend apps/frontend
-RUN pnpm --filter @million-items-selector/frontend build
+RUN pnpm --filter @million-items-selector/frontend generate
 
-# Minimal runner: Nuxt .output is fully self-contained
-FROM node:22-alpine AS runner
-WORKDIR /app
-COPY --from=build /app/apps/frontend/.output .output
+# Serve static files with nginx
+FROM nginx:alpine AS runner
+COPY --from=build /app/apps/frontend/.output/public /usr/share/nginx/html
+COPY apps/frontend/nginx.conf /etc/nginx/conf.d/default.conf
 
-ENV NODE_ENV=production PORT=3000
 EXPOSE 3000
-CMD ["node", ".output/server/index.mjs"]
+CMD ["nginx", "-g", "daemon off;"]

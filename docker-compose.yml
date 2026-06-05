@@ -22,13 +22,11 @@ services:
     build:
       context: .
       dockerfile: apps/frontend/Dockerfile
+      args:
+        # Baked into the static bundle at build time.
+        # Set API_BASE_URL in Coolify's environment variables before deploying.
+        API_BASE_URL: ${API_BASE_URL:-http://localhost:3001}
     restart: unless-stopped
-    environment:
-      NODE_ENV: production
-      PORT: 3000
-      # Public URL of the backend — set this in Coolify's environment variables.
-      # The browser uses this to make API calls directly.
-      NUXT_PUBLIC_API_BASE: ${API_BASE_URL:-http://localhost:3001}
     depends_on:
       backend:
         condition: service_healthy
